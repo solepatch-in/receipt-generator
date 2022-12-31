@@ -1,0 +1,17 @@
+.DS_Store
+
+*.class
+
+bin/
+.settings/
+
+# IntelliJ
+.idea/
+*.iml
+*.ipr
+*.iws
+atlassian-ide-plugin.xml
+
+# Project specific exclusions
+*.pdf
+target/*
