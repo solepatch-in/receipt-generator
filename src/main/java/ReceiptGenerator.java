@@ -1,6 +1,5 @@
 
 import com.itextpdf.io.font.FontConstants;
-import com.itextpdf.io.image.ImageDataFactory;
 import com.itextpdf.kernel.color.Color;
 import com.itextpdf.kernel.color.DeviceCmyk;
 import com.itextpdf.kernel.font.PdfFont;
@@ -10,17 +9,18 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 import com.itextpdf.layout.Document;
-import com.itextpdf.layout.element.*;
+import com.itextpdf.layout.element.Paragraph;
+import com.itextpdf.layout.element.Tab;
+import com.itextpdf.layout.element.TabStop;
+import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.property.HorizontalAlignment;
 import com.itextpdf.layout.property.TabAlignment;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.List;
 import java.util.*;
 
 public class ReceiptGenerator {
@@ -36,13 +36,16 @@ public class ReceiptGenerator {
 
     private static String receiptMonth;
     private static String dateOfRentPayment;
+    private static List<String> months = new ArrayList<>();
 
     private static PdfFont font;
     private static PdfFont bold;
 
     private static final int HEADER_FONT_SIZE = 22;
     private static final int TEXT_FONT_SIZE = 14;
-    private static final DateFormat monthFormatter = new SimpleDateFormat("MM-yyyy");
+    private static final DateFormat monthInputParser = new SimpleDateFormat("MM-yyyy");
+    private static final DateFormat monthOutputFormatter = new SimpleDateFormat("MMM-yyyy");
+    private static final SimpleDateFormat fullDateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 
     public static void main(String[] args) throws IOException {
         File file = new File(DEST);
@@ -57,10 +60,10 @@ public class ReceiptGenerator {
         System.out.println("1. Pre-filled Rent Receipt Generator");
         System.out.println("2. Empty Rent Receipt Generator");
         String option = scanner.nextLine();
-        String option = "2";
-        
+
         switch (option) {
             case "1":
+                System.out.println("Executing Case 1");
                 System.out.println("Please enter the name of the tenant : ");
                 tenantName = scanner.nextLine();
 
@@ -76,24 +79,29 @@ public class ReceiptGenerator {
                 System.out.println("Please enter the entire rental period : ");
                 try {
                     System.out.println("From Date (MM-YYYY) : ");
-                    fromDate = monthFormatter.parse(scanner.nextLine());
+                    fromDate = monthInputParser.parse(scanner.nextLine());
                     System.out.println("To Date (MM-YYYY) : ");
-                    toDate = monthFormatter.parse(scanner.nextLine());
+                    toDate = monthInputParser.parse(scanner.nextLine());
+                    monthsBetween(fromDate, toDate);
                 } catch (ParseException pe) {
-                    System.out.println(pe);
+                    System.out.println(pe.getMessage());
                 }
 
                 System.out.println("Please enter landlord's PAN Number : ");
                 panNumber = scanner.nextLine();
+                new ReceiptGenerator().createRentReceipt(DEST);
                 break;
             case "2":
+                System.out.println("Executing Case 2");
+                if (months.size() == 0) {
+                    months.add(null);
+                }
                 new ReceiptGenerator().createRentReceipt(DEST);
                 break;
             default:
+                System.out.println("Executing the Default Case");
                 System.out.println("Sorry we don't have that option. Please select from the ones provided.");
         }
-//        new CenterText().manipulatePdf(DEST1);
-
     }
 
     public void createRentReceipt(String destination) throws IOException {
@@ -104,13 +112,28 @@ public class ReceiptGenerator {
         document.setFontSize(TEXT_FONT_SIZE);
         Rectangle pageSize = pdfDoc.getDefaultPageSize();
         float width = pageSize.getWidth() - document.getLeftMargin() - document.getRightMargin();
+        Calendar dateOfRent;
 
-        addTitle(document, width);
-        addSubTitle(document, width);
-        addBody(document, width);
-        addSignature(document, width);
-        addPan(document, width);
-        drawBorder(document);
+        for (String month : months) {
+            System.out.println("Executing for " + months.size() + " months");
+            receiptMonth = month;
+
+            // Calculate and populate receipt month and date of receipt basis the current month
+            if (receiptMonth != null) {
+                dateOfRent = Calendar.getInstance();
+                dateOfRent.add(Calendar.MONTH, 1);
+                dateOfRent.set(Calendar.DAY_OF_MONTH, 1);
+                dateOfRentPayment = fullDateFormat.format(dateOfRent.getTime());
+            }
+
+            addTitle(document, width);
+            addSubTitle(document, width);
+            addBody(document, width);
+            addSignature(document, width);
+            addPan(document, width);
+            drawBorder(document);
+        }
+
         document.close();
     }
 
@@ -193,17 +216,6 @@ public class ReceiptGenerator {
         document.add(paragraph);
     }
 
-    private static Image addRevenueStamp() {
-        Image image = null;
-        try {
-            image = new Image(ImageDataFactory.create("./src/main/resources/img/revenuestamp.png"));
-            image.scaleAbsolute(60.0F, 60.0F);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
-        return image;
-    }
-
     private static void addPan(Document document, float width) {
         List<TabStop> tabStops = new ArrayList<>();
 
@@ -227,7 +239,8 @@ public class ReceiptGenerator {
 
         while (beginCalendar.before(finishCalendar)) {
             // add one month to date per loop
-            String date = monthFormatter.format(beginCalendar.getTime()).toUpperCase();
+            String date = monthOutputFormatter.format(beginCalendar.getTime()).toUpperCase();
+            months.add(date);
             System.out.println(date);
             beginCalendar.add(Calendar.MONTH, 1);
         }
@@ -240,7 +253,6 @@ public class ReceiptGenerator {
         float topY = pageSize.getTop() - document.getTopMargin() + 10;
         float rightX = pageSize.getRight() - document.getLeftMargin() + 15;
         float bottomY = topY - 260;
-
 
         // Create a 100% Magenta color
         Color magentaColor = new DeviceCmyk(0.f, 1.f, 0.f, 0.f);
